@@ -1,0 +1,94 @@
+### EduTutor AI - Starter Code Base
+
+# main.py
+from fastapi import FastAPI
+from backend.api.routes import router as api_router
+
+app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"message": "EduTutor AI is running"}
+
+app.include_router(api_router)
+
+
+# backend/api/routes.py
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/ping")
+def ping():
+    return {"status": "ok"}
+
+
+# backend/llm/quiz_generator.py
+from langchain_ibm import WatsonxLLM
+import os
+
+llm = WatsonxLLM(
+    model_id="granite-13b-chat",
+    api_key=os.getenv("WATSONX_APIKEY"),
+    project_id=os.getenv("WATSONX_PROJECT_ID"),
+    url=os.getenv("WATSONX_URL")
+)
+
+def generate_quiz(topic: str) -> str:
+    prompt = f"Generate 5 multiple choice questions on {topic}."
+    return llm.predict(prompt)
+
+
+# backend/classroom/classroom_api.py
+from googleapiclient.discovery import build
+
+def get_courses(credentials):
+    service = build('classroom', 'v1', credentials=credentials)
+    results = service.courses().list(pageSize=10).execute()
+    return results.get('courses', [])
+
+
+# backend/utils/auth.py
+from google_auth_oauthlib.flow import Flow
+import os
+
+def get_google_flow():
+    flow = Flow.from_client_secrets_file(
+        "client_secret.json",
+        scopes=["https://www.googleapis.com/auth/classroom.courses.readonly"],
+        redirect_uri=os.getenv("GOOGLE_REDIRECT_URI")
+    )
+    return flow
+
+
+# frontend/dashboard.py
+import streamlit as st
+
+st.set_page_config(page_title="EduTutor AI")
+st.title("🎓 EduTutor AI Dashboard")
+
+st.write("Welcome to your personalized learning assistant!")
+
+if st.button("Generate Sample Quiz"):
+    st.write("🔍 Topic: Newton’s Laws")
+    st.write("1. Which of the following is Newton's First Law?")
+    st.write("a) F = ma\n b) An object in motion stays in motion\n c) For every action, there is an equal reaction\n d) Gravity is constant")
+
+
+# .env (example content)
+WATSONX_APIKEY=your_actual_api_key
+WATSONX_PROJECT_ID=your_project_id
+WATSONX_URL=https://us-south.ml.cloud.ibm.com
+GOOGLE_REDIRECT_URI=http://localhost:8501
+
+
+# requirements.txt
+fastapi
+uvicorn
+streamlit
+langchain_ibm
+pinecone-client
+google-auth
+google-auth-oauthlib
+google-api-python-client
+python-dotenv
